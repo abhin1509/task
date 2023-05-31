@@ -2,11 +2,11 @@ const AWS = require("aws-sdk");
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const TABLE_NAME = process.env.TABLE_NAME;
 
-const sendResponse = (code) => {
+const sendResponse = (code, contacts) => {
   return {
     statusCode: code,
     body: JSON.stringify({
-      success: "true",
+      contact: contacts,
     }),
   };
 };
@@ -21,15 +21,27 @@ const checkContact = async (email, phoneNumber) => {
       console.error(error);
     });
 
+  let primaryContatctId = null;
+  let secondaryContactIds = [];
+  let emails = [];
+  let phoneNumbers = [];
   for (let currentOrder of res.Items) {
     if (
       currentOrder.email == email ||
       currentOrder.phoneNumber == phoneNumber
     ) {
-      return currentOrder.id;
+      if (currentOrder.linkPrecedence == "primary") {
+        primaryContatctId = currentOrder.id;
+        emails.push(currentOrder.email);
+        phoneNumbers.push(currentOrder.phoneNumber);
+      } else {
+        secondaryContactIds.push(currentOrder.id);
+        emails.push(currentOrder.email);
+        phoneNumbers.push(currentOrder.phoneNumber);
+      }
     }
   }
-  return false;
+  return { primaryContatctId, secondaryContactIds, emails, phoneNumbers };
 };
 
 exports.handler = async (event) => {
@@ -44,11 +56,13 @@ exports.handler = async (event) => {
     const updatedAt = createdAt;
     const deletedAt = null;
 
-    const contactAlreadyExisted = await checkContact(email, phoneNumber);
+    const responseItem = await checkContact(email, phoneNumber);
+    const contactAlreadyExisted =
+      responseItem.primaryContatctId != id ? true : false;
     let linkedId = null;
     let linkPrecedence = "primary";
     if (contactAlreadyExisted) {
-      linkedId = contactAlreadyExisted;
+      linkedId = responseItem.primaryContatctId;
       linkPrecedence = "secondary";
     }
     const record = {
@@ -71,7 +85,8 @@ exports.handler = async (event) => {
       .catch((error) => {
         console.error(error);
       });
-    return sendResponse(200);
+    console.log("response: ", responseItem);
+    return sendResponse(200, responseItem);
   } catch (e) {
     console.log(e);
   }
