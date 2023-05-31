@@ -28,12 +28,16 @@ const checkContact = async (email, phoneNumber, id) => {
   let phoneNumbersList = new Set();
   let secondaryContactIds = [];
 
+  let isCurrentContactPrimary = true;
+
   for (let currentOrder of res.Items) {
     if (
       currentOrder.email == email ||
       currentOrder.phoneNumber == phoneNumber
     ) {
+      isCurrentContactPrimary = false;
       if (currentOrder.linkPrecedence == "primary") {
+        isPrimary = true;
         primaryContatctId = currentOrder.id;
         primaryEmail = currentOrder.email; // check if email exists
         primaryNumber = currentOrder.phoneNumber; // check if phoneNumber exists
@@ -45,12 +49,18 @@ const checkContact = async (email, phoneNumber, id) => {
     }
   }
 
+  // adding current email and phone number to both list
+  // bcoz in case of primary email or phone number is not present
+  emailsList.add(email);
+  phoneNumbersList.add(phoneNumber);
+
   // if primaryContactId is not current id
   // means current id is also secondary id
   if (primaryContatctId != id) {
     secondaryContactIds.push(id);
   }
 
+  // handling primary email and phone number in first position
   let emails = [];
   if (primaryEmail) {
     // delete duplicate email
@@ -60,13 +70,19 @@ const checkContact = async (email, phoneNumber, id) => {
     // primary email in first position
     emails.unshift(primaryEmail);
   }
-
   let phoneNumbers = [];
   if (primaryNumber) {
     phoneNumbersList.delete(primaryNumber);
     phoneNumbers = [...phoneNumbersList];
     phoneNumbers.unshift(primaryNumber);
   }
+
+  // if current contact is primary return same email and phone number
+  if(isCurrentContactPrimary) {
+    phoneNumbers.push(phoneNumber);
+    emails.push(email);
+  }
+
   return { primaryContatctId, emails, phoneNumbers, secondaryContactIds };
 };
 
