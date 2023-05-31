@@ -15,10 +15,11 @@ exports.handler = async (event) => {
   try {
     console.log(event);
     const { email, phoneNumber } = JSON.parse(event.body) || {};
-    console.log(email, phoneNumber);
-    console.log(TABLE_NAME);
     const id = Math.floor(Math.random() * 10000) + 1;
-    const createdAt = new Date().toISOString();
+    const createdAt = new Date()
+      .toISOString()
+      .replace("T", " ")
+      .replace("Z", "+00");
     const updatedAt = createdAt;
     const deletedAt = null;
 
@@ -39,14 +40,16 @@ exports.handler = async (event) => {
       updatedAt,
       deletedAt,
     };
-    console.log(record);
-    const dbRes = await dynamoDB
+    console.log("record:: ", record);
+    await dynamoDB
       .put({
         Item: record,
         TableName: TABLE_NAME,
       })
-      .promise();
-    console.log(dbRes);
+      .promise()
+      .catch((error) => {
+        console.error(error);
+      });
     return sendResponse(200);
   } catch (e) {
     console.log(e);
