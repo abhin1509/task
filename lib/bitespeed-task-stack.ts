@@ -1,19 +1,51 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as apigw from "aws-cdk-lib/aws-apigateway";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as dotenv from "dotenv";
 
-export class BitespeedTaskStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+dotenv.config();
+
+const TABLE_NAME = process.env.TABLE_NAME as string;
+const STAGE_NAME = process.env.STAGE_NAME as string || "dev";
+const API_VERSION = process.env.API_VERSION as string || "v1";
+
+export class BitespeedTaskStack extends cdk.Stack {
+  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const queue = new sqs.Queue(this, 'BitespeedTaskQueue', {
-      visibilityTimeout: Duration.seconds(300)
+    const identifyLambda = new lambda.Function(this, "IdentifyLambdaHandler", {
+      runtime: lambda.Runtime.NODEJS_16_X,
+      code: lambda.Code.fromAsset("lambda"),
+      handler: "identify_lambda.handler",
+      timeout: cdk.Duration.minutes(1),
+      ephemeralStorageSize: cdk.Size.mebibytes(512),
+      memorySize: 128,
+      environment: {
+        TABLE_NAME,
+      },
     });
 
-    const topic = new sns.Topic(this, 'BitespeedTaskTopic');
+    // API Gateway REST API
+    const api = new apigw.LambdaRestApi(this, "Endpoint", {
+      handler: identifyLambda,
+      proxy: false,
+      deployOptions: {
+        stageName: STAGE_NAME,
+      },
+    });
 
-    topic.addSubscription(new subs.SqsSubscription(queue));
+    const apiResource = api.root.addResource(API_VERSION);
+    const apiEndpoint = apiResource.addResource("identify");
+    apiEndpoint.addMethod("GET", new apigw.LambdaIntegration(identifyLambda));
+
+    // contack Db
+    const contactDb = new dynamodb.Table(this, "contactTable", {
+      partitionKey: { name: "id", type: dynamodb.AttributeType.NUMBER },
+      tableName: TABLE_NAME,
+    });
+
+    // grant the lambda role read/write permissions to our table
+    contactDb.grantReadWriteData(identifyLambda);
   }
 }
