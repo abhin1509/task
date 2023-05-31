@@ -22,10 +22,12 @@ const checkContact = async (email, phoneNumber, id) => {
     });
 
   let primaryContatctId = id;
-  let secondaryContactIds = [];
-  
+  let primaryEmail = "";
+  let primaryNumber = "";
   let emailsList = new Set();
   let phoneNumbersList = new Set();
+  let secondaryContactIds = [];
+
   for (let currentOrder of res.Items) {
     if (
       currentOrder.email == email ||
@@ -33,19 +35,39 @@ const checkContact = async (email, phoneNumber, id) => {
     ) {
       if (currentOrder.linkPrecedence == "primary") {
         primaryContatctId = currentOrder.id;
-        emailsList.add(currentOrder.email);
-        phoneNumbersList.add(currentOrder.phoneNumber);
+        primaryEmail = currentOrder.email; // check if email exists
+        primaryNumber = currentOrder.phoneNumber; // check if phoneNumber exists
       } else {
+        emailsList.add(currentOrder.email); // check email
+        phoneNumbersList.add(currentOrder.phoneNumber); // check phone number
         secondaryContactIds.push(currentOrder.id);
-        emailsList.add(currentOrder.email);
-        phoneNumbersList.add(currentOrder.phoneNumber);
       }
     }
   }
-  let emails = [...emailsList];
-  let phoneNumbers = [...phoneNumbersList];
 
-  return { primaryContatctId, secondaryContactIds, emails, phoneNumbers };
+  // if primaryContactId is not current id
+  // means current id is also secondary id
+  if (primaryContatctId != id) {
+    secondaryContactIds.push(id);
+  }
+
+  let emails = [];
+  if (primaryEmail) {
+    // delete duplicate email
+    emailsList.delete(primaryEmail);
+    //copy all unique emails
+    emails = [...emailsList];
+    // primary email in first position
+    emails.unshift(primaryEmail);
+  }
+
+  let phoneNumbers = [];
+  if (primaryNumber) {
+    phoneNumbersList.delete(primaryNumber);
+    phoneNumbers = [...phoneNumbersList];
+    phoneNumbers.unshift(primaryNumber);
+  }
+  return { primaryContatctId, emails, phoneNumbers, secondaryContactIds };
 };
 
 exports.handler = async (event) => {
