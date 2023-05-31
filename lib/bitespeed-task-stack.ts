@@ -37,7 +37,7 @@ export class BitespeedTaskStack extends cdk.Stack {
 
     const apiResource = api.root.addResource(API_VERSION);
     const apiEndpoint = apiResource.addResource("identify");
-    apiEndpoint.addMethod("GET", new apigw.LambdaIntegration(identifyLambda));
+    apiEndpoint.addMethod("POST", new apigw.LambdaIntegration(identifyLambda));
 
     // contack Db
     const contactDb = new dynamodb.Table(this, "contactTable", {
