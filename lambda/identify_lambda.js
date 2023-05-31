@@ -11,6 +11,27 @@ const sendResponse = (code) => {
   };
 };
 
+const checkContact = async (email, phoneNumber) => {
+  const res = await dynamoDB
+    .scan({
+      TableName: TABLE_NAME,
+    })
+    .promise()
+    .catch((error) => {
+      console.error(error);
+    });
+
+  for (let currentOrder of res.Items) {
+    if (
+      currentOrder.email == email ||
+      currentOrder.phoneNumber == phoneNumber
+    ) {
+      return currentOrder.id;
+    }
+  }
+  return false;
+};
+
 exports.handler = async (event) => {
   try {
     console.log(event);
@@ -23,7 +44,7 @@ exports.handler = async (event) => {
     const updatedAt = createdAt;
     const deletedAt = null;
 
-    const contactAlreadyExisted = false;
+    const contactAlreadyExisted = await checkContact(email, phoneNumber);
     let linkedId = null;
     let linkPrecedence = "primary";
     if (contactAlreadyExisted) {
