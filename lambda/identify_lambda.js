@@ -23,8 +23,9 @@ const checkContact = async (email, phoneNumber, id) => {
 
   let primaryContatctId = id;
   let secondaryContactIds = [];
-  let emails = [];
-  let phoneNumbers = [];
+  
+  let emailsList = new Set();
+  let phoneNumbersList = new Set();
   for (let currentOrder of res.Items) {
     if (
       currentOrder.email == email ||
@@ -32,15 +33,18 @@ const checkContact = async (email, phoneNumber, id) => {
     ) {
       if (currentOrder.linkPrecedence == "primary") {
         primaryContatctId = currentOrder.id;
-        emails.push(currentOrder.email);
-        phoneNumbers.push(currentOrder.phoneNumber);
+        emailsList.add(currentOrder.email);
+        phoneNumbersList.add(currentOrder.phoneNumber);
       } else {
         secondaryContactIds.push(currentOrder.id);
-        emails.push(currentOrder.email);
-        phoneNumbers.push(currentOrder.phoneNumber);
+        emailsList.add(currentOrder.email);
+        phoneNumbersList.add(currentOrder.phoneNumber);
       }
     }
   }
+  let emails = [...emailsList];
+  let phoneNumbers = [...phoneNumbersList];
+
   return { primaryContatctId, secondaryContactIds, emails, phoneNumbers };
 };
 
