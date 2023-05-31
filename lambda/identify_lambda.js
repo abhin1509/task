@@ -11,7 +11,7 @@ const sendResponse = (code, contacts) => {
   };
 };
 
-const checkContact = async (email, phoneNumber) => {
+const checkContact = async (email, phoneNumber, id) => {
   const res = await dynamoDB
     .scan({
       TableName: TABLE_NAME,
@@ -21,7 +21,7 @@ const checkContact = async (email, phoneNumber) => {
       console.error(error);
     });
 
-  let primaryContatctId = null;
+  let primaryContatctId = id;
   let secondaryContactIds = [];
   let emails = [];
   let phoneNumbers = [];
@@ -56,7 +56,7 @@ exports.handler = async (event) => {
     const updatedAt = createdAt;
     const deletedAt = null;
 
-    const responseItem = await checkContact(email, phoneNumber);
+    const responseItem = await checkContact(email, phoneNumber, id);
     const contactAlreadyExisted =
       responseItem.primaryContatctId != id ? true : false;
     let linkedId = null;
