@@ -11,7 +11,7 @@ const sendResponse = (code, contacts) => {
   };
 };
 
-const checkContact = async (email, phoneNumber, id) => {
+const checkContact = async (incomingEmail, phoneNumber, id) => {
   const res = await dynamoDB
     .scan({
       TableName: TABLE_NAME,
@@ -20,7 +20,7 @@ const checkContact = async (email, phoneNumber, id) => {
     .catch((error) => {
       console.error(error);
     });
-
+  
   let primaryContatctId = id;
   let primaryEmail = "";
   let primaryNumber = "";
@@ -32,18 +32,25 @@ const checkContact = async (email, phoneNumber, id) => {
 
   for (let currentOrder of res.Items) {
     if (
-      currentOrder.email == email ||
-      currentOrder.phoneNumber == phoneNumber
+      (currentOrder.email == incomingEmail && incomingEmail != null) ||
+      (currentOrder.phoneNumber == phoneNumber && phoneNumber != null)
     ) {
       isCurrentContactPrimary = false;
       if (currentOrder.linkPrecedence == "primary") {
-        isPrimary = true;
         primaryContatctId = currentOrder.id;
-        primaryEmail = currentOrder.email; // check if email exists
-        primaryNumber = currentOrder.phoneNumber; // check if phoneNumber exists
+        if(currentOrder.email) {  // check db email not null
+          primaryEmail = currentOrder.email;
+        }
+        if(currentOrder.phoneNumber) { // check if not null
+          primaryNumber = currentOrder.phoneNumber; // check if phoneNumber exists
+        }
       } else {
-        emailsList.add(currentOrder.email); // check email
-        phoneNumbersList.add(currentOrder.phoneNumber); // check phone number
+        if(currentOrder.email) {  // check db email not null
+          emailsList.add(currentOrder.email);
+        }
+        if(currentOrder.phoneNumber) { // check phone number not null
+          phoneNumbersList.add(currentOrder.phoneNumber);
+        }
         secondaryContactIds.push(currentOrder.id);
       }
     }
@@ -51,9 +58,14 @@ const checkContact = async (email, phoneNumber, id) => {
 
   // adding current email and phone number to both list
   // bcoz in case of primary email or phone number is not present
-  emailsList.add(email);
-  phoneNumbersList.add(phoneNumber);
-
+  if(incomingEmail) { //incoming email is not null
+    emailsList.add(incomingEmail);
+  }
+  if(phoneNumber) { // incoming no is not null
+    phoneNumbersList.add(phoneNumber);
+  }
+  
+  
   // if primaryContactId is not current id
   // means current id is also secondary id
   if (primaryContatctId != id) {
@@ -78,11 +90,14 @@ const checkContact = async (email, phoneNumber, id) => {
   }
 
   // if current contact is primary return same email and phone number
-  if(isCurrentContactPrimary) {
-    phoneNumbers.push(phoneNumber);
-    emails.push(email);
+  if (isCurrentContactPrimary) {
+    if(phoneNumber) { // incoming no is not null
+      phoneNumbers.push(phoneNumber);
+    }
+    if(incomingEmail) { //incoming email is not null
+      emails.push(incomingEmail);
+    }
   }
-
   return { primaryContatctId, emails, phoneNumbers, secondaryContactIds };
 };
 
