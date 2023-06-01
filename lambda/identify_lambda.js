@@ -11,8 +11,7 @@ const sendResponse = (code, contacts) => {
   };
 };
 
-
-const checkContact = async (incomingEmail, phoneNumber, id) => {
+const processIncomingContact = async (incomingEmail, phoneNumber, id) => {
   const res = await dynamoDB
     .scan({
       TableName: TABLE_NAME,
@@ -42,22 +41,22 @@ const checkContact = async (incomingEmail, phoneNumber, id) => {
 
     let firstTime = new Date(firstId.createdAt);
     let secondTime = new Date(secondId.createdAt);
-    let OlderId = (firstTime < secondTime) ? secondId : firstId;
+    let OlderId = firstTime < secondTime ? secondId : firstId;
     // secondTime is older, so secondId is primary and firstId is secondary
     // make firstId as secondary
     await dynamoDB
       .update({
         TableName: TABLE_NAME,
         Key: {
-          id: OlderId
+          id: OlderId,
         },
         UpdateExpression: `set linkPrecedence = :x`,
         ExpressionAttributeValues: {
           ":x": "secondary",
         },
-      }).promise();
+      })
+      .promise();
   }
-
 
   let primaryContatctId = id;
   let primaryEmail = "";
@@ -80,20 +79,23 @@ const checkContact = async (incomingEmail, phoneNumber, id) => {
       isCurrentContactPrimary = false;
       if (currentOrder.linkPrecedence == "primary") {
         primaryContatctId = currentOrder.id;
-        if (currentOrder.email) { // check db email not null
+        if (currentOrder.email) {
+          // check db email not null
           primaryEmail = currentOrder.email;
         }
-        if (currentOrder.phoneNumber) { // check if not null
+        if (currentOrder.phoneNumber) {
+          // check if not null
           primaryNumber = currentOrder.phoneNumber; // check if phoneNumber exists
         }
-      }
-      else {
+      } else {
         secondaryContactIds.push(currentOrder.id);
       }
-      if (currentOrder.email) { // check db email not null
+      if (currentOrder.email) {
+        // check db email not null
         emailsList.add(currentOrder.email);
       }
-      if (currentOrder.phoneNumber) { // check phone number not null
+      if (currentOrder.phoneNumber) {
+        // check phone number not null
         phoneNumbersList.add(currentOrder.phoneNumber);
       }
     }
@@ -103,13 +105,14 @@ const checkContact = async (incomingEmail, phoneNumber, id) => {
 
   // adding current email and phone number to both list
   // bcoz in case of primary email or phone number is not present
-  if (incomingEmail) { //incoming email is not null
+  if (incomingEmail) {
+    //incoming email is not null
     emailsList.add(incomingEmail);
   }
-  if (phoneNumber) { // incoming no is not null
+  if (phoneNumber) {
+    // incoming no is not null
     phoneNumbersList.add(phoneNumber);
   }
-
 
   // if primaryContactId is not current id
   // means current id is also secondary id
@@ -136,10 +139,12 @@ const checkContact = async (incomingEmail, phoneNumber, id) => {
 
   // if current contact is primary return same email and phone number
   if (isCurrentContactPrimary) {
-    if (phoneNumber) { // incoming no is not null
+    if (phoneNumber) {
+      // incoming no is not null
       phoneNumbers.push(phoneNumber);
     }
-    if (incomingEmail) { //incoming email is not null
+    if (incomingEmail) {
+      //incoming email is not null
       emails.push(incomingEmail);
     }
   }
@@ -158,7 +163,7 @@ exports.handler = async (event) => {
     const updatedAt = createdAt;
     const deletedAt = null;
 
-    const responseItem = await checkContact(email, phoneNumber, id);
+    let responseItem = await processIncomingContact(email, phoneNumber, id);
     const contactAlreadyExisted =
       responseItem.primaryContatctId != id ? true : false;
     let linkedId = null;
@@ -178,7 +183,9 @@ exports.handler = async (event) => {
       deletedAt,
     };
     console.log("record:: ", record);
-    if (phoneNumber || email) {
+
+    // if email and phone number both are null, one can be null
+    if (email || phoneNumber) {
       await dynamoDB
         .put({
           Item: record,
@@ -188,11 +195,15 @@ exports.handler = async (event) => {
         .catch((error) => {
           console.error(error);
         });
+    } else {
+      // if both are null then remove primaryContactId from response
+      delete responseItem.primaryContatctId;
+      responseItem.primaryContactId = null;
     }
+
     console.log("response: ", responseItem);
     return sendResponse(200, responseItem);
-  }
-  catch (e) {
+  } catch (e) {
     console.log(e);
   }
 };
